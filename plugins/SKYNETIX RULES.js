@@ -40,7 +40,18 @@ export default {
     ownerOnly: true,
     async handler(sock, message, _args, context) {
         const chatId = context.chatId || message.key.remoteJid;
-        await sock.sendMessage(chatId, { text: RULES_MESSAGE }, { quoted: message });
+        await sock.sendMessage(chatId, {
+            text: RULES_MESSAGE,
+            contextInfo: {
+                forwardingScore: 1,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363350619358109@newsletter',
+                    newsletterName: 'SKYNETIX MD',
+                    serverMessageId: -1
+                }
+            }
+        }, { quoted: message });
     }
 };
 
