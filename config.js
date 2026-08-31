@@ -18,7 +18,7 @@ const config = {
     // Links
     channelLink: process.env.CHANNEL_LINK || 'https://whatsapp.com/channel/0029VaxJHLb5a248k7Cz8F0a',
     updateZipUrl: process.env.UPDATE_URL || 'https://github.com/justmom678/group-control-bot/archive/refs/heads/main.zip',
-    voiceMenuUrl: process.env.VOICE_MENU_URL || 'https://github.com/justmom678/group-control-bot/blob/main/assets/voice-menu.mp3',
+    voiceMenuUrl: process.env.VOICE_MENU_URL || 'https://files.catbox.moe/poglwk.mp3',
     ytChannel: process.env.YT_CHANNEL || 'skynetix1',
     // Session
     sessionId: process.env.SESSION_ID || '',
