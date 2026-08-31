@@ -197,7 +197,8 @@ async function startQasimDev() {
         const QasimDev = makeWASocket({
             version,
             logger: pino({ level: 'silent' }),
-            browser: Browsers.macOS('Chrome'),
+            // Ubuntu is the supported headless browser profile for pairing-code auth.
+            browser: Browsers.ubuntu('Chrome'),
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
@@ -395,7 +396,15 @@ async function startQasimDev() {
                     }
                 }
             };
-            setTimeout(() => doPairing(phoneNumberInput), 3000);
+            // WhatsApp emits a QR update after the initial handshake. Requesting the
+            // pairing code from that event avoids premature 428/400 responses.
+            let pairingRequested = false;
+            QasimDev.ev.on('connection.update', ({ qr }) => {
+                if (qr && !pairingRequested) {
+                    pairingRequested = true;
+                    doPairing(phoneNumberInput);
+                }
+            });
         }
         else if (isRegistered) {
             if (rl && !rlClosed) {
