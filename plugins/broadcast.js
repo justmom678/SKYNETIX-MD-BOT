@@ -1,3 +1,6 @@
+const MAX_BROADCAST_GROUPS = 20;
+const BROADCAST_DELAY_MS = 2500;
+
 export default {
     command: 'broadcast',
     aliases: ['bc', 'announce'],
@@ -11,8 +14,19 @@ export default {
         const text = args.join(' ').trim();
         if (!text) {
             return await sock.sendMessage(chatId, {
-                text: `*📢 BROADCAST*\n\n*Usage:* .broadcast <message>\n\n*Example:*\n.broadcast Hello everyone! Bot will be down for maintenance at 10 PM.\n\n_Sends to all groups the bot is in. Has a 1 second delay between each group to avoid ban._`,
+                text: `*📢 BROADCAST*\n\n*Usage:* .broadcast confirm <message>\n\n*Example:*\n.broadcast confirm Hello everyone! Bot will be down for maintenance at 10 PM.\n\n_Sends only relevant announcements, to at most 20 groups, with conservative pacing._`,
                 ...channelInfo
+            }, { quoted: message });
+        }
+        if (args[0]?.toLowerCase() !== 'confirm') {
+            return await sock.sendMessage(chatId, {
+                text: `⚠️ *Confirmation required*\n\nThis sends one message to every group where the bot is present. To continue, use:\n.broadcast confirm <message>\n\nOnly send relevant, expected announcements.`
+            }, { quoted: message });
+        }
+        const broadcastTextInput = args.slice(1).join(' ').trim();
+        if (!broadcastTextInput) {
+            return await sock.sendMessage(chatId, {
+                text: '❌ Please provide a message after `confirm`.'
             }, { quoted: message });
         }
         let groups = [];
@@ -29,11 +43,16 @@ export default {
                 ...channelInfo
             }, { quoted: message });
         }
+        if (groups.length > MAX_BROADCAST_GROUPS) {
+            return await sock.sendMessage(chatId, {
+                text: `⚠️ Broadcast stopped: ${groups.length} groups found, but the safety limit is ${MAX_BROADCAST_GROUPS}. Send smaller, targeted announcements instead.`
+            }, { quoted: message });
+        }
         await sock.sendMessage(chatId, {
             text: `📢 *Broadcasting to ${groups.length} group(s)...*\n\nThis may take a moment.`,
             ...channelInfo
         }, { quoted: message });
-        const broadcastText = `📢 *BROADCAST MESSAGE*\n\n${text}`;
+        const broadcastText = `📢 *BROADCAST MESSAGE*\n\n${broadcastTextInput}`;
         let sent = 0;
         let failed = 0;
         for (const groupJid of groups) {
@@ -56,8 +75,8 @@ export default {
                 console.error(`[BROADCAST] Failed to send to ${groupJid}: ${e.message}`);
                 failed++;
             }
-            // 1 second delay between sends to avoid WhatsApp rate limiting
-            await new Promise(r => setTimeout(r, 1000));
+            // Conservative pacing reduces burst traffic and gives WhatsApp time to process each send.
+            await new Promise(r => setTimeout(r, BROADCAST_DELAY_MS));
         }
         await sock.sendMessage(chatId, {
             text: `✅ *Broadcast Complete!*\n\n📤 Sent: ${sent}\n❌ Failed: ${failed}\n📊 Total: ${groups.length}`,

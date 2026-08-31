@@ -1,3 +1,6 @@
+const MAX_BROADCAST_CONTACTS = 10;
+const BROADCAST_DM_DELAY_MS = 3000;
+
 export default {
     command: 'broadcastdm',
     aliases: ['bcdm', 'announcedm', 'dmall'],
@@ -15,6 +18,17 @@ export default {
                 ...channelInfo
             }, { quoted: message });
         }
+        if (args[0]?.toLowerCase() !== 'confirm') {
+            return await sock.sendMessage(chatId, {
+                text: `⚠️ *Confirmation required*\n\nThis sends one message to saved contacts. To continue, use:\n.broadcastdm confirm <message>\n\nOnly message people who expect to hear from this bot.`
+            }, { quoted: message });
+        }
+        const broadcastTextInput = args.slice(1).join(' ').trim();
+        if (!broadcastTextInput) {
+            return await sock.sendMessage(chatId, {
+                text: '❌ Please provide a message after `confirm`.'
+            }, { quoted: message });
+        }
         let contacts = [];
         try {
             const allContacts = Object.keys(sock.store?.contacts || {});
@@ -30,11 +44,16 @@ export default {
                 ...channelInfo
             }, { quoted: message });
         }
+        if (contacts.length > MAX_BROADCAST_CONTACTS) {
+            return await sock.sendMessage(chatId, {
+                text: `⚠️ DM broadcast stopped: ${contacts.length} contacts found, but the safety limit is ${MAX_BROADCAST_CONTACTS}. Send smaller, targeted messages instead.`
+            }, { quoted: message });
+        }
         await sock.sendMessage(chatId, {
             text: `📩 *Broadcasting to ${contacts.length} contact(s)...*\n\nThis may take a moment.`,
             ...channelInfo
         }, { quoted: message });
-        const broadcastText = `📩 *MESSAGE*\n\n${text}`;
+        const broadcastText = `📩 *MESSAGE*\n\n${broadcastTextInput}`;
         let sent = 0;
         let failed = 0;
         for (const contactJid of contacts) {
@@ -57,8 +76,8 @@ export default {
                 console.error(`[BROADCASTDM] Failed to send to ${contactJid}: ${e.message}`);
                 failed++;
             }
-            // 1.5 second delay between DMs
-            await new Promise(r => setTimeout(r, 1500));
+            // Conservative pacing reduces burst traffic and gives WhatsApp time to process each send.
+            await new Promise(r => setTimeout(r, BROADCAST_DM_DELAY_MS));
         }
         await sock.sendMessage(chatId, {
             text: `✅ *DM Broadcast Complete!*\n\n📤 Sent: ${sent}\n❌ Failed: ${failed}\n📊 Total: ${contacts.length}`,
